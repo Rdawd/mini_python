@@ -96,8 +96,6 @@ FLOAT
 
 Solo cambiaron esas 3 reglas; las demás quedaron igual. Cada regla está copiada igual en el docstring de su método en sintactico.py, y pruebas.py lo comprueba (resultado: ok).
 
-**
-
 ## Archivos
 
 | Archivo          | Qué es                                                                                       |
