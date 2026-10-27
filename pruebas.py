@@ -1,4 +1,5 @@
-"""Pruebas de regresión de MiniPy.
+"""
+Pruebas de regresión de MiniPy.
 
 Corre cada caso de CASOS con interprete.py, cada caso de CASOS_ARBOL con
 sintactico.py y cada caso de CASOS_TOK con lex2tok.py, y compara la salida
@@ -68,7 +69,6 @@ ENTORNO = dict(os.environ, PYTHONIOENCODING="utf-8")
 # Casos para interprete.py:
 # (nombre, programa, salida esperada, ¿comparar también con Python?)
 # El programa puede ser str o bytes (para probar codificaciones).
-# --- Casos adicionales para CASOS (ejecución e intérprete) ---
 CASOS = [
     # --- Programas de ejemplo ---
     ("ejemplo", "def main():\n    suma = 0\n    for i in range(1, 11):\n"
@@ -235,6 +235,32 @@ CASOS = [
      "Error de ejecución: división entre cero", False),
     ("cociente entre cero", "def main():\n    x = 7\n    print(x // 0)\n\nmain()\n",
      "Error de ejecución: división entre cero", False),
+
+    # --- Pruebas de la extensión: float, /, **, sqrt, sin, cos ---
+    ("decimales (float)", "def main():\n    x = 3.14\n    print(x)\n    print(0.5)\n    print(0.0)\n\nmain()\n",
+     "3.14\n0.5\n0.0", True),
+    ("división real con /", "def main():\n    print(7 / 2)\n    print(8 / 2)\n    print(-7 / 2)\n\nmain()\n",
+     "3.5\n4.0\n-3.5", True),
+    ("potencia con **", "def main():\n    print(2 ** 3)\n    print(2 ** -1)\n    print(4 ** 0.5)\n    print(0 ** 0)\n\nmain()\n",
+     "8\n0.5\n2.0\n1", True),
+    ("potencia asociatividad izquierda", "def main():\n    print(2 ** 3 ** 2)\n    print(2 * 3 ** 2)\n    print(2 ** 3 * 2)\n    print(2 ** (3 ** 2))\n\nmain()\n",
+     "64\n36\n16\n512", False),
+    ("funciones sqrt, sin y cos", "def main():\n    print(sqrt(16))\n    print(sqrt(3 * 3 + 4 * 4))\n    print(sin(0))\n    print(cos(0))\n    print(cos(sin(0)))\n\nmain()\n",
+     "4.0\n5.0\n0.0\n1.0\n1.0", False),
+    ("división real entre cero", "def main():\n    print(7 / 0)\n\nmain()\n",
+     "Error de ejecución: división entre cero", False),
+    ("cero elevado a negativo", "def main():\n    print(0 ** -1)\n\nmain()\n",
+     "Error de ejecución: división entre cero", False),
+    ("potencia de base negativa con decimal", "def main():\n    print((-2) ** 0.5)\n\nmain()\n",
+     "Error de ejecución: raíz o potencia de número negativo", False),
+    ("sqrt de número negativo", "def main():\n    print(sqrt(-4))\n\nmain()\n",
+     "Error de ejecución: raíz cuadrada de número negativo", False),
+    ("función desconocida", "def main():\n    print(foo(1 / 0))\n\nmain()\n",
+     "Error de ejecución: función desconocida: 'foo'", False),
+    ("range con decimal", "def main():\n    for i in range(0, 5.0):\n        print(i)\n\nmain()\n",
+     "Error de ejecución: range solo admite enteros", False),
+    ("desbordamiento numérico", "def main():\n    print(10.0 ** 400)\n\nmain()\n",
+     "Error de ejecución: desbordamiento numérico", False),
 ]
 
 
@@ -257,6 +283,14 @@ CASOS_ARBOL = [
      "def main():\n    x = " + " + ".join(["1"] * 5000) + "\n\nmain()\n",
      "Error: el árbol del programa es demasiado profundo "
      "(mucho anidamiento o una expresión muy larga)"),
+    ("árbol con float, /, ** y llamada a función",
+     "def main():\n    x = sqrt(16.0) ** 2 / 2.0\n\nmain()\n",
+     "Programa\n  cuerpo:\n    Asignacion (nombre='x')\n      valor:\n"
+     "        BinOp (op='/')\n          izq:\n            BinOp (op='**')\n"
+     "              izq:\n                Llamada (nombre='sqrt')\n"
+     "                  arg:\n                    Num (valor=16.0)\n"
+     "              der:\n                Num (valor=2)\n          der:\n"
+     "            Num (valor=2.0)"),
 ]
 
 
@@ -277,6 +311,13 @@ CASOS_TOK = [
     ("error léxico en el .tok", "def main():\n    x = 5 / 2\n\nmain()\n",
      "# Tokens de caso.py, generado por lex2tok.py\n"
      "# Error léxico: línea 2, columna 11: carácter inesperado '/'\n"),
+    ("tokens con float, /, ** y funciones",
+     "def main():\n    x = sin(3.14) ** 2 / cos(0.0)\n\nmain()\n",
+     "# Tokens de caso.py, generado por lex2tok.py\n"
+     "  1  DEF MAIN ( ) : NEWLINE\n"
+     "  2  INDENT ID:x = ID:sin ( NUM:3.14 ) ** NUM:2 / ID:cos ( NUM:0.0 ) NEWLINE\n"
+     "  4  DEDENT MAIN ( ) NEWLINE\n"
+     "  5  EOF\n"),
 ]
 
 
@@ -443,3 +484,10 @@ def main():
         correctos += probar_carpeta(carpeta)
     print("\n--- gramatica.ebnf ---")
     correctos += probar_gramatica()
+
+    print(f"\n{correctos} de {total} casos correctos")
+    sys.exit(0 if correctos == total else 1)
+
+
+if __name__ == "__main__":
+    main()
