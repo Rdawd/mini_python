@@ -1,0 +1,74 @@
+(* Gramática de MiniPy en EBNF:                                       *)
+(*   "x"     terminal literal                                         *)
+(*   { x }   cero o más repeticiones de x                             *)
+(*   [ x ]   x es opcional                                            *)
+(*   ( x )   agrupación                                               *)
+(*   a | b   a o b                                                    *)
+(*   ...     abrevia un rango de caracteres: "a" | ... | "z"          *)
+(* Las reglas se escriben con ::=, como en BNF.                       *)
+(* Este archivo es la referencia oficial del lenguaje: el analizador  *)
+(* sintáctico y el léxico deben seguirlo.                             *)
+(*                                                                    *)
+(* Las marcas MODIFICADO indican qué cambió respecto a la gramática   *)
+(* original; "antes:" muestra cómo era la regla. Categorías: [FLOAT]  *)
+(* decimales, [ARITMÉTICO / **] división y potencia, [SQRT] funciones *)
+(* sqrt, sin y cos.                                                   *)
+
+
+(* ---------------------------- Sintaxis ---------------------------- *)
+
+programa    ::= "def" "main" "(" ")" ":" bloque "main" "(" ")" NEWLINE
+bloque      ::= NEWLINE INDENT sentencia { sentencia } DEDENT
+sentencia   ::= asignacion | si | para | imprimir
+
+asignacion  ::= ID "=" expr NEWLINE
+imprimir    ::= "print" "(" expr ")" NEWLINE
+si          ::= "if" condicion ":" bloque [ "else" ":" bloque ]
+para        ::= "for" ID "in" "range" "(" expr [ "," expr ] ")" ":" bloque
+
+condicion   ::= expr OPREL expr
+expr        ::= termino { ( "+" | "-" ) termino }
+
+(* MODIFICADO [ARITMÉTICO / **]: se agregaron "/" y "**".             *)
+(*   antes: termino ::= factor { ( "*" | "//" | "%" ) factor }        *)
+(* Misma precedencia que "*", "//" y "%": se aplican de izquierda a   *)
+(* derecha. No hay regla especial para "**": 2 ** 3 ** 2 = 64.        *)
+(*Incorpora la división real y la potencia al mismo nivel de precedencia y*) 
+(*asociatividad izquierda que *, // y %, sin añadir reglas extras de jerarquía.*)
+
+termino     ::= factor { ( "*" | "/" | "//" | "%" | "**" ) factor }
+
+(* MODIFICADO [SQRT]: solo cambia la alternativa ID, que ahora admite *)
+(* una llamada a función, p. ej. sqrt(x). Las demás quedan igual.     *)
+(*   antes: factor ::= NUM | ID | "(" expr ")" | "-" factor           *)
+(* sqrt, sin y cos no son palabras reservadas: son ID comunes. Es     *)
+(* LL(1): tras el ID basta mirar si el siguiente token es "(".        *)
+(* se agregó [ "(" expr ")" ] a ID para permitir funciones como sqrt(x). *)
+factor      ::= NUM | ID [ "(" expr ")" ] | "(" expr ")" | "-" factor
+
+
+(* ----------------------------- Léxico ----------------------------- *)
+
+ID              ::= ( letra | "_" ) { letra | digito | "_" }    (* excepto palabras reservadas *)
+
+(* MODIFICADO [FLOAT]: NUM admite una parte decimal opcional.         *)
+(*   antes: NUM ::= "0" { "0" } | digito_no_cero { digito }           *)
+(* Son válidos 3, 3.14, 0.5 y 0.0. Después del punto debe haber al    *)
+(* menos un dígito: 3. y .5 no son números. No hay notación           *)
+(* científica: 1e-3 no es un número. Siguen sin permitirse ceros a la *)
+(* izquierda en la parte entera (007 y 07.5 no son válidos).          *)
+(* CAMBIO: se agregó [ "." digito { digito } ] para aceptar números decimales. *)
+NUM             ::= ( "0" { "0" } | digito_no_cero { digito } ) [ "." digito { digito } ]
+OPREL           ::= "==" | "!=" | "<" | "<=" | ">" | ">="
+
+letra           ::= "a" | ... | "z" | "A" | ... | "Z"           (* solo ASCII: sin acentos ni ñ *)
+digito          ::= "0" | digito_no_cero
+digito_no_cero  ::= "1" | ... | "9"
+
+(* Palabras reservadas: def main if else for in range print           *)
+(* CAMBIO LÉXICO: se agregaron "/" y "**" ("**" se lee junto antes que "*")              
+(* El léxico genera NEWLINE, INDENT y DEDENT a partir de los fines de *)
+(* línea y de la sangría (con una pila de niveles).                   *)
+(* Espacios y tabuladores separan tokens; la sangría solo admite      *)
+(* espacios.                                                          *)
+(* Comentarios: de # al fin de la línea; el léxico los descarta.      *)
